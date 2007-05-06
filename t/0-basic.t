@@ -25,8 +25,8 @@ SKIP: {
 	is($book->{'isbn'}, '9864175351');
 	is($book->{'title'}, '藍海策略：開創無人競爭的全新市場');
 	is($book->{'author'}, '金偉燦');
-	is($book->{'book_link'}, 'http://www.sanmin.com.tw/page-qsearch.asp?ct=search_isbn&qu=9864175351');
-	is($book->{'image_link'}, 'http://www.sanmin.com.tw/sanmin/assets/product_images/986417535.jpg');
+	is($book->{'book_link'}, 'http://www.sanmin.com.tw/page-product.asp?pid=319242&pf_id=000434530');
+	is($book->{'image_link'}, 'http://www.sanmin.com.tw/Assets/product_images/986417535.jpg');
 	is($book->{'pubdate'}, '94/08/01');
 	is($book->{'publisher'}, '天下文化書坊');
 	is($book->{'price_list'}, '450');

@@ -6,7 +6,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION @ISA);
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 #--------------------------------------------------------------------------
 
@@ -33,14 +33,13 @@ Searches for book information from the TWSanmin's online catalog.
 use WWW::Scraper::ISBN::Driver;
 use WWW::Mechanize;
 use Template::Extract;
-
-use Data::Dumper;
+use Text::Iconv;
 
 ###########################################################################
 #Constants                                                                #
 ###########################################################################
 
-use constant	QUERY	=> 'http://www.sanmin.com.tw/page-qsearch.asp?ct=search_isbn&qu=%s';
+use constant	QUERY	=> 'http://www.sanmin.com.tw/page-qsearch.asp?ct=search_isbn1&qu=%s';
 
 #--------------------------------------------------------------------------
 
@@ -70,7 +69,6 @@ a valid page is returned, the following fields are returned via the book hash:
   isbn
   title
   author
-  pages
   book_link
   image_link
   pubdate
@@ -95,43 +93,39 @@ sub search {
 	$mechanize->get($url);
 	return undef unless($mechanize->success());
 
+	my $conv = Text::Iconv->new("utf-8", "big5");
+	my $content = $mechanize->content();
+	$content =~ /(table width="98%"  align="center" bgcolor=#99CCFF.*-PRICE-)/s;
+	$content = $conv->convert($1);
+
 	my $template = <<END;
-書籍標題開始[% ... %]
 ALT="[% title %]">[% ... %]
 <img src="[% image_link %]"[% ... %]
 I S B N[% ... %]<B>[% isbn %]</B>[% ... %]
-作　者[% ... %]">[% author %]</a>[% ... %]
-出版社[% ... %]<A href="[% ... %]">[% publisher %]&nbsp;</A>[% ... %]
+作　者[% ... %]<a href[% ... %]>[% author %]</a>[% ... %]
+出版社[% ... %]<td width="58%">[% publisher %]&nbsp;</td>[% ... %]
 出版日[% ... %]<td>[% pubdate %]</td>[% ... %]
-　價[% ... %]<S>[% price_list %]</S>元</td>
+原　價[% ... %]<td>[% price_list %]元</td>[% ... %]
+特　價[% ... %]<font color="#FF0000">[% price_sell %]<
 END
 
 	my $extract = Template::Extract->new;
-	my $data = $extract->extract($template, $mechanize->content());
+	my $data = $extract->extract($template, $content);
 
 	return $self->handler("Could not extract data from TWSanmin result page.")
 		unless(defined $data);
 
 	$data->{title} =~ s/(.*)(－.*\d+) *$/$1/;
-	$data->{pubdate} =~ s/\s+(\S+)\s+/$1/;
-	$data->{author} =~ s/ +$//;
-	$data->{price_list} =~ s/^\D+(\d+)\D+$/$1/;
-
-	if ($mechanize->content() =~ m/\/ (\d+)頁/) {
-		$data->{pages} = $1;
-	}
-
-	if ($mechanize->content() =~ m/FF0000">(<b>)?(\d+)</) {
-		$data->{price_sell} = $2;
-	}
+	$data->{pubdate} =~ s/[ \n\r\t]+//g;
+	$data->{author} = join('', map { $conv->convert(chr($_)) if ($_ =~ /\d+/) } split(/[&#;]/, $data->{author}));
+	$data->{publisher} = join('', map { $conv->convert(chr($_)) if ($_ =~ /\d+/) } split(/[&#;]/, $data->{publisher}));
 
 	my $bk = {
 		'isbn'		=> $data->{isbn},
 		'title'		=> $data->{title},
 		'author'	=> $data->{author},
-		'pages'		=> $data->{pages},
-		'book_link'	=> $mechanize->uri(),
-		'image_link'	=> "http://www.sanmin.com.tw".$data->{image_link},
+		'book_link'	=> $mechanize->uri()->as_string,
+		'image_link'	=> "http://www.sanmin.com.tw/".$data->{image_link},
 		'pubdate'	=> $data->{pubdate},
 		'publisher'	=> $data->{publisher},
 		'price_list'	=> $data->{price_list},
